@@ -2,8 +2,8 @@ const XLSX = require('xlsx');
 
 // Função para ler o arquivo Excel
 function lerArquivoExcel(caminhoArquivo) {
-    const workbook = XLSX.readFile('C:/Users/Dudu/OneDrive/Área de Trabalho/agrupar/agrupar.xlsx');
-    const sheetName = 'agrupar';
+    const workbook = XLSX.readFile('C:/Users/carlos.silva/Desktop/agrupar/agrupar.xlsx');
+    const sheetName = 'agrupar'; // Especificar a planilha "agrupar"
     const worksheet = workbook.Sheets[sheetName];
     return XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 }
@@ -13,18 +13,16 @@ function agruparPecas(pecas) {
     const agrupados = {};
 
     pecas.forEach(peca => {
-        const key = `${peca.Posição}`;
+        const key = `${peca.Tipo}-${peca.Espessura}-${peca.Largura}`;
         if (!agrupados[key]) {
             agrupados[key] = [];
         }
         for (let i = 0; i < peca.Quantidade; i++) {
             agrupados[key].push({
+                Posição: peca.Posição,
                 Tipo: peca.Tipo,
                 Espessura: peca.Espessura,
                 Largura: peca.Largura,
-                Alma: peca.Alma,
-                MesaInferior: peca['Mesa Inferior'],
-                MesaSuperior: peca['Mesa Superior'],
                 Comprimento: peca.Comprimento
             });
         }
@@ -36,60 +34,42 @@ function agruparPecas(pecas) {
 // Função para gerar a saída final
 function gerarRelacao(agrupados) {
     const resultado = [];
-    const tiposOrdem = ['ALMA', 'MESA INFERIOR', 'MESA SUPERIOR'];
 
-    for (const posicao in agrupados) {
-        const grupo = agrupados[posicao];
-        
-        // Agrupar por combinação única de atributos
-        const subGrupos = {};
-        
+    for (const key in agrupados) {
+        const grupo = agrupados[key];
+        grupo.sort((a, b) => a.Comprimento - b.Comprimento); // Ordenar por comprimento
+
+        let totalComprimento = 0;
+        let grupoAtual = [];
+        let posicoes = [];
+
         grupo.forEach(peca => {
-            const key = `${peca.Tipo}-${peca.Espessura}-${peca.Largura}-${peca.Alma}-${peca.MesaInferior}-${peca.MesaSuperior}`;
-            if (!subGrupos[key]) {
-                subGrupos[key] = [];
-            }
-            subGrupos[key].push(peca);
-        });
-
-        // Processar cada subgrupo e ordenar pelo tipo
-        for (const key in subGrupos) {
-            const subGrupo = subGrupos[key];
-            subGrupo.sort((a, b) => tiposOrdem.indexOf(a.Tipo) - tiposOrdem.indexOf(b.Tipo));
-
-            let totalComprimento = 0;
-            let grupoAtual = [];
-
-            subGrupo.forEach(peca => {
-                const novoComprimento = totalComprimento + peca.Comprimento;
-                if (novoComprimento > 12000) {
-                    resultado.push({
-                        Posição: posicao,
-                        Tipo: grupoAtual.map(p => p.Tipo).join(', '),
-                        Espessura: peca.Espessura,
-                        Alma: peca.Alma,
-                        MesaInferior: peca.MesaInferior,
-                        MesaSuperior: peca.MesaSuperior,
-                        ComprimentoTotal: totalComprimento
-                    });
-                    grupoAtual = [];
-                    totalComprimento = 0;
-                }
+            if (totalComprimento + peca.Comprimento <= 12000) {
                 grupoAtual.push(peca);
+                posicoes.push(peca.Posição);
                 totalComprimento += peca.Comprimento;
-            });
-
-            if (grupoAtual.length > 0) {
+            } else {
                 resultado.push({
-                    Posição: posicao,
-                    Tipo: grupoAtual.map(p => p.Tipo).join(', '),
+                    Posição: posicoes.join(', '),
+                    Tipo: grupoAtual[0].Tipo,
                     Espessura: grupoAtual[0].Espessura,
-                    Alma: grupoAtual[0].Alma,
-                    MesaInferior: grupoAtual[0].MesaInferior,
-                    MesaSuperior: grupoAtual[0].MesaSuperior,
+                    Largura: grupoAtual[0].Largura,
                     ComprimentoTotal: totalComprimento
                 });
+                grupoAtual = [peca];
+                posicoes = [peca.Posição];
+                totalComprimento = peca.Comprimento;
             }
+        });
+
+        if (grupoAtual.length > 0) {
+            resultado.push({
+                Posição: posicoes.join(', '),
+                Tipo: grupoAtual[0].Tipo,
+                Espessura: grupoAtual[0].Espessura,
+                Largura: grupoAtual[0].Largura,
+                ComprimentoTotal: totalComprimento
+            });
         }
     }
 
@@ -105,9 +85,9 @@ function salvarArquivoExcel(dados, caminhoArquivo) {
 }
 
 // Caminho do arquivo Excel original
-const caminhoArquivoOriginal = 'C:/Users/Dudu/OneDrive/Área de Trabalho/agrupar/agrupar.xlsx';
+const caminhoArquivoOriginal = 'C:/Users/carlos.silva/Desktop/agrupar/agrupar.xlsx';
 // Caminho do novo arquivo Excel
-const caminhoArquivoNovo = 'C:/Users/Dudu/OneDrive/Área de Trabalho/agrupadas/resultado_agrupado.xlsx';
+const caminhoArquivoNovo = 'C:/Users/carlos.silva/Desktop/agrupado/resultado_agrupado.xlsx';
 
 // Ler e processar o arquivo Excel
 const pecas = lerArquivoExcel(caminhoArquivoOriginal);
